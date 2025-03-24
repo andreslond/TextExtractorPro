@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extractor de Menús - OCR</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-utensils me-2"></i>
+                Extractor de Menús
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="card bg-dark shadow-sm">
+                    <div class="card-header bg-dark text-light">
+                        <h3 class="mb-0"><i class="fas fa-file-image me-2"></i>Extractor de Información de Menús</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <p class="lead">
+                                Esta herramienta utiliza OCR (Reconocimiento Óptico de Caracteres) para extraer información de imágenes de menús y la estructura en un formato utilizable.
+                            </p>
+                            <p>
+                                Sube imágenes de menús para extraer automáticamente:
+                            </p>
+                            <ul class="feature-list">
+                                <li><i class="fas fa-check-circle text-success"></i> Productos y platillos</li>
+                                <li><i class="fas fa-check-circle text-success"></i> Categorías de menú</li>
+                                <li><i class="fas fa-check-circle text-success"></i> Precios</li>
+                                <li><i class="fas fa-check-circle text-success"></i> Descripciones</li>
+                            </ul>
+                        </div>
+
+                        <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="mb-3" id="upload-form">
+                            <div class="mb-3">
+                                <label for="language" class="form-label">Idioma del Menú:</label>
+                                <select class="form-select" id="language" name="language">
+                                    <option value="spa" selected>Español</option>
+                                    <option value="eng">Inglés</option>
+                                    <option value="fra">Francés</option>
+                                    <option value="ita">Italiano</option>
+                                    <option value="por">Portugués</option>
+                                    <option value="cat">Catalán</option>
+                                    <option value="deu">Alemán</option>
+                                </select>
+                            </div>
+                            
+                            <div class="upload-area mb-3" id="upload-area">
+                                <div class="upload-content text-center p-5">
+                                    <i class="fas fa-cloud-upload-alt fa-4x mb-3 text-info"></i>
+                                    <h4>Arrastra y suelta imágenes aquí</h4>
+                                    <p>o</p>
+                                    <label for="file-input" class="btn btn-primary">
+                                        Seleccionar Archivos
+                                    </label>
+                                    <input type="file" name="files[]" id="file-input" accept=".png,.jpg,.jpeg,.gif,.bmp,.tiff,.tif" multiple class="d-none">
+                                    <p class="mt-2 text-muted">Formatos soportados: PNG, JPG, JPEG, GIF, BMP, TIFF</p>
+                                </div>
+                            </div>
+                            
+                            <div id="file-preview" class="d-none mb-3">
+                                <h5>Archivos seleccionados (<span id="file-count">0</span>):</h5>
+                                <ul id="file-list" class="list-group"></ul>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success" id="submit-btn" disabled>
+                                    <i class="fas fa-cogs me-2"></i>Procesar Imágenes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card bg-dark mt-4 shadow-sm">
+                    <div class="card-header bg-dark text-light">
+                        <h3 class="mb-0"><i class="fas fa-info-circle me-2"></i>Cómo Funciona</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 text-center mb-3">
+                                <div class="step-circle">1</div>
+                                <h5>Sube Imágenes</h5>
+                                <p>Sube imágenes de menús en formatos comunes</p>
+                            </div>
+                            <div class="col-md-4 text-center mb-3">
+                                <div class="step-circle">2</div>
+                                <h5>Procesamiento OCR</h5>
+                                <p>El sistema extrae el texto y lo analiza</p>
+                            </div>
+                            <div class="col-md-4 text-center mb-3">
+                                <div class="step-circle">3</div>
+                                <h5>Descarga Resultados</h5>
+                                <p>Obtén datos estructurados en CSV o JSON</p>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            <strong>Consejo:</strong> Para mejores resultados, utiliza imágenes claras y de buena calidad. El OCR funciona mejor cuando el texto es nítido y bien contrastado.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-dark text-light">
+        <div class="container text-center">
+            <p>&copy; 2023 Extractor de Menús. Desarrollado con <i class="fas fa-heart text-danger"></i> y OCR.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
