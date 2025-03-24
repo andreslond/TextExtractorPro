@@ -26,10 +26,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default_menu_extractor_secret")
 
 # Configure upload settings
-UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), "menu_extractor_uploads")
+UPLOAD_FOLDER = os.path.join("results/", "menu_extractor_uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-OUTPUT_FOLDER = os.path.join(tempfile.gettempdir(), "menu_extractor_results")
+OUTPUT_FOLDER = os.path.join("results/", "menu_extractor_results")
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'tif'}
