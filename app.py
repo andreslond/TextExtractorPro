@@ -164,7 +164,7 @@ def download_file(format):
         return redirect(url_for('results'))
 
 @app.route('/clear')
-def clear_session():
+def clear():
     """Clear session data and return to index."""
     session.clear()
     flash('Session data cleared', 'info')

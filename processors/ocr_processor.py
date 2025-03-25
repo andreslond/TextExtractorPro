@@ -29,7 +29,7 @@ class OCRProcessor:
         # PSM 4 - Assumes a single column of text of variable sizes
         # PSM 6 - Assumes a single uniform block of text
         # Use PSM 11 for sparse text with no specific orientation
-        self.custom_config = f'--oem 3 --psm 4 -l {language} --dpi 300'
+        self.custom_config = f'--oem 3 --psm 6 -l {language} --dpi 300'
 
         # Check if Tesseract is installed
         try:
@@ -63,17 +63,35 @@ class OCRProcessor:
                 image = self._preprocess_image(image)
 
             # Extract text using Tesseract
-            text = pytesseract.image_to_string(image,
-                                               config=self.custom_config)
+            #text = pytesseract.image_to_string(image,
+            #                                   config=self.custom_config)
 
+            # data = pytesseract.image_to_data(
+            #     image,
+            #     config=self.custom_config,
+            #     output_type=pytesseract.Output.DICT)
+
+            data2 = pytesseract.image_to_string(
+                image,
+                config=self.custom_config,
+                output_type=pytesseract.Output.STRING)
+
+            # logger.info(f"dict: {data}")
+            # logger.info("------------------------------------------------")
+            logger.info(f"String: {data2}")
+            logger.info("------------------------------------------------")
+
+            # Convert data to list of strings
+            # line_list = data2.split('\n')
+            # logger.debug(f"line list:  {line_list}")
             logger.debug(
-                f"Extracted {len(text)} characters from {os.path.basename(image_path)}"
+                f"Extracted {len(data2)} lines from {os.path.basename(image_path)}"
             )
-            return text
+            return data2
 
         except Exception as e:
             logger.error(f"Error extracting text from {image_path}: {str(e)}")
-            return ""
+            return []
 
     def _preprocess_image(self, image: Image.Image) -> Image.Image:
         """Preprocess image to improve OCR accuracy.
@@ -86,14 +104,14 @@ class OCRProcessor:
         """
         # Save original image size for reference
         original_size = image.size
-        
+
         # Resize if the image is too small for good OCR
         if original_size[0] < 1000 or original_size[1] < 1000:
             scale_factor = 2.0  # Double the size for small images
-            new_size = (int(original_size[0] * scale_factor), 
-                       int(original_size[1] * scale_factor))
+            new_size = (int(original_size[0] * scale_factor),
+                        int(original_size[1] * scale_factor))
             image = image.resize(new_size, Image.LANCZOS)
-        
+
         # Convert to grayscale
         if image.mode != 'L':
             image = image.convert('L')
@@ -101,14 +119,14 @@ class OCRProcessor:
         # Increase contrast - higher value for menu images with shadows
         enhancer = ImageEnhance.Contrast(image)
         image = enhancer.enhance(2.5)
-        
+
         # Increase brightness slightly to make text clearer
         enhancer = ImageEnhance.Brightness(image)
         image = enhancer.enhance(1.2)
 
-        # Apply slight blur to reduce noise 
+        # Apply slight blur to reduce noise
         image = image.filter(ImageFilter.GaussianBlur(radius=0.5))
-        
+
         # Sharpen after blur to enhance text edges
         image = image.filter(ImageFilter.SHARPEN)
 

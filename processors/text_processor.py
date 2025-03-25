@@ -25,18 +25,23 @@ class TextProcessor:
         # Common words that indicate a category in Spanish/Colombian menus
         self.category_indicators = [
             # Spanish general categories
-            'entrantes', 'aperitivos', 'primeros', 'segundos', 'postres',
-            'bebidas', 'vinos', 'cervezas', 'refrescos', 'cafés',
-            'especialidades', 'platos', 'menú', 'combo', 'principal',
-            'ensaladas', 'sopas', 'carnes', 'pescados', 'mariscos',
-            'vegetariano', 'vegano', 'hamburguesas', 'pizzas', 'pastas',
-            'arroces', 'tapas', 'raciones', 'desayunos', 'almuerzos', 'cenas',
-            'sugerencias', 'recomendaciones',
             # Colombian specific categories from example images
-            'alimentacion', 'amasijos', 'almuerzo', 'especial', 'brownie',
-            'croissant', 'pan', 'golpe', 'refrigerios', 'torta', 'waffle',
-            'pastel', 'queso', 'chocolate', 'muffins', 'masmelos', 'productos',
-            'aprobar'
+            'alimentacion',
+            'amasijos',
+            'almuerzos',
+            'bebidas',
+            'galleteria',
+            'bebidas frias',
+            'lacteos',
+            'preparados',
+            'parrilla',
+            'snacks',
+            'topping sundae',
+            'wraps',
+            'bolw de arros',
+            'dcafe'
+            'de dulce',
+            'de picar'
         ]
 
         # Spanish words to ignore when identifying items (stop words)
@@ -54,23 +59,19 @@ class TextProcessor:
             r'\(\$([0-9]+)\)',  # ($25000)
             r'\$([0-9,\.]+)\)',  # $25,000.00)
             r'\$\s*([0-9,\.]+)',  # $25,000.00
-            
-            # Standard currency patterns
-            r'(\d+[\.,]\d+)\s*€',  # 10.99 €, 10,99€
-            r'€\s*(\d+[\.,]\d+)',  # € 10.99, €10,99
-            r'(\d+[\.,]\d+)\s*EUR',  # 10.99 EUR
-            r'(\d+[\.,]\d+)\s*euros',  # 10.99 euros
-            r'(\d+)\s*€',  # 10 €, 10€
-            r'€\s*(\d+)',  # € 10, €10
-            r'\$\s*(\d+[\.,]\d+)',  # $10.99
-            r'(\d+[\.,]\d+)\$',  # 10.99$
-            r'\$\s*(\d+)',  # $10
-            r'(\d+)\$',  # 10$
-            r'(\d+)[-,]\s*(\d+)[\s€]',  # 10-50€, 10,50€
-            
+
             # Price ranges with currency
             r'\$([0-9,\.]+)\s*-\s*\$([0-9,\.]+)',  # $10,000 - $25,000
         ]
+
+        self.default_category = "Sin categoría"
+
+        self.product_pattern = re.compile(
+            r'^(.*?)\s*'  # Nombre del producto
+            r'\(?\$?'  # Posibles símbolos
+            r'(\d{1,3}(?:[.,]\d{3}){1,2}(?:[.,]\d{2})?)'  # Precio
+            r'\)?$'  # Posible cierre
+        )
 
     def process_text(self, text: str) -> List[MenuCategory]:
         """Process text to identify menu items and categories.
@@ -84,18 +85,18 @@ class TextProcessor:
         logger.debug("Processing extracted text")
 
         # Clean and normalize text
-        clean = clean_text(text)
+        # clean = clean_text(text)
 
         # Split into lines and process each line
-        lines = clean.split('\n')
+        lines = text.split('\n')
         lines = [line.strip() for line in lines if line.strip()]
-        logger.info("flines: {lines}")
+        logger.info(f"lines: {lines}")
         # Identify potential category headers and menu items
         categories = self._identify_categories(lines)
 
         # If no categories were found, create a default one
         if not categories:
-            categories = [MenuCategory("Menu Items", [])]
+            categories = [MenuCategory("Default", [])]
             current_category = categories[0]
 
             # Process all lines as potential menu items
@@ -127,26 +128,27 @@ class TextProcessor:
         current_category = None
 
         for i, line in enumerate(lines):
+            logger.info(f"i: {i}  - line: {line}")
             # Normalize for comparison
             normalized_line = normalize_text(line.lower())
 
             # Check if line is a category header
             is_category = False
 
-            # Check for uppercase lines (common for category headers)
-            if line.isupper() and len(line) > 3:
-                is_category = True
+            # # Check for uppercase lines (common for category headers)
+            # if line.isupper() and len(line) > 3:
+            #    is_category = True
 
-            # Check for lines containing category indicator words
-            for indicator in self.category_indicators:
-                if indicator in normalized_line:
-                    is_category = True
-                    break
+            # # Check for lines containing category indicator words
+            # for indicator in self.category_indicators:
+            #     if indicator in normalized_line:
+            #         is_category = True
+            #         break
 
             # Check for short lines followed by longer lines (likely headers)
             if (len(line.split()) <= 3 and len(line) < 20
                     and i < len(lines) - 1 and len(lines[i + 1]) > len(line)
-                    and ':' not in line):
+                    and '$' not in line):
                 is_category = True
 
             # Line with only one word and not a price
@@ -183,43 +185,23 @@ class TextProcessor:
         Returns:
             MenuItem object or None if not a valid item
         """
+        logger.info(f"Processing line: {line}")
         # Skip very short lines
         if len(line) < 3:
             return None
 
         # Extract the price first as it's the most reliable indicator
-        price_match, price_value = self._extract_price(line)
-
-        # If we found a price, extract the name from the rest of the line
-        if price_match:
-            # Remove the price part from the line
-            name_part = line.replace(price_match, '').strip()
-            # Clean trailing and leading punctuation
-            name_part = re.sub(r'^[^\w]+|[^\w]+$', '', name_part)
-
-            # If name part is too short after removing price, it's probably not a valid item
-            if len(name_part) < 3:
-                return None
-
-            return MenuItem(
-                name=name_part,
-                price=price_value,
-                description=None  # No detailed description in this line
-            )
-
-        # If no price was found, check if it's a description line for the previous item
-        # or if it's a menu item without a price
-
-        # Line is too long to be just a name - likely contains name and description
-        if len(line) > 30 and ':' in line:
-            parts = line.split(':', 1)
-            return MenuItem(
-                name=parts[0].strip(),
-                price=None,  # No price found
-                description=parts[1].strip() if len(parts) > 1 else None)
-
-        # Otherwise, treat the whole line as an item name without a price
-        return MenuItem(name=line.strip(), price=None, description=None)
+        product_result, price_value = self._extract_price(line)
+        product_name = ''
+        
+        if product_result:
+            product_name = product_result
+            
+        return MenuItem(
+            name=product_name,
+            price=price_value,
+            description=None  # No detailed description in this line
+        )
 
     def _extract_price(self,
                        text: str) -> Tuple[Optional[str], Optional[float]]:
@@ -231,30 +213,28 @@ class TextProcessor:
         Returns:
             Tuple of (matched text, price value) or (None, None) if no price found
         """
-        for pattern in self.price_patterns:
-            matches = re.search(pattern, text)
-            if matches:
-                try:
-                    # Get the full matched text
-                    full_match = matches.group(0)
 
-                    # Extract numerical value
-                    if len(matches.groups()) == 1:
-                        # Simple single number pattern
-                        price_str = matches.group(1)
-                        # Convert comma to dot for float parsing
-                        price_str = price_str.replace(',', '.')
-                        price_value = float(price_str)
-                    elif len(matches.groups()) == 2:
-                        # Pattern with two number groups (like 10-50)
-                        price_str = matches.group(1) + '.' + matches.group(2)
-                        price_value = float(price_str)
-                    else:
-                        continue
+        line = text.strip()
+        if not line:
+            return None, None
 
-                    return full_match, price_value
+        matches = self.product_pattern.search(text)
+        if matches:
+            try:
+                price_value = 0.0
+                # Get the full matched text
+                full_match = matches.group(0)
 
-                except (ValueError, IndexError):
-                    continue
+                logger.info(f"Match 1: {matches.group(1)}")
+                logger.info(f"Match 2: {matches.group(2)}")
 
+                product_name = matches.group(1)
+                price_value = matches.group(2)[:-3].replace('.', '')
+
+                logger.info(f"price_value: {price_value}")
+                logger.info(f"full_match: {full_match}")
+                return product_name, int(price_value)
+
+            except (ValueError, IndexError):
+                return None, None
         return None, None

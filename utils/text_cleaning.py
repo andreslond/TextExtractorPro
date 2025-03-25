@@ -24,11 +24,11 @@ def clean_text(text: str) -> str:
     text = ' '.join(text.split())
 
     # Normalize line breaks
-    text = re.sub(r'\r\n', '\n', text)
-    text = re.sub(r'\r', '\n', text)
+    # text = re.sub(r'\r\n', '\n', text)
+    # text = re.sub(r'\r', '\n', text)
 
     # Normalize multiple line breaks
-    text = re.sub(r'\n{3,}', '\n\n', text)
+    # text = re.sub(r'\n{3,}', '\n\n', text)
 
     # Fix common OCR errors
     text = fix_common_ocr_errors(text)
