@@ -77,7 +77,7 @@ class OCRProcessor:
                 output_type=pytesseract.Output.STRING)
 
             # logger.info(f"dict: {data}")
-            # logger.info("------------------------------------------------")
+            logger.info("------------------------------------------------")
             logger.info(f"String: {data2}")
             logger.info("------------------------------------------------")
 
@@ -91,7 +91,7 @@ class OCRProcessor:
 
         except Exception as e:
             logger.error(f"Error extracting text from {image_path}: {str(e)}")
-            return []
+            return ""
 
     def _preprocess_image(self, image: Image.Image) -> Image.Image:
         """Preprocess image to improve OCR accuracy.

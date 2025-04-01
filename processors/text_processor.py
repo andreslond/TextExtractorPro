@@ -73,6 +73,29 @@ class TextProcessor:
             r'\)?$'  # Posible cierre
         )
 
+    # Patrones mejorados
+    price_pattern_same_line = re.compile(
+        r'^(.*?)\s*'  # Nombre del producto
+        r'\(?\$?'  # Símbolos opcionales ($ o ()
+        r'(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)'  # Precio
+        r'\)?$'  # Cierre opcional )
+    )
+
+    price_pattern_next_line = re.compile(
+        r'^(.+)$'  # Nombre del producto (toda la línea)
+    )
+
+    next_line_is_price = re.compile(r'^\(?\$?'
+                                    r'(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)'
+                                    r'\)?$')
+    
+    rare_price_line = re.compile(
+    r'\(?'                # Posible apertura de paréntesis
+    r'[\$s]?'             # Símbolos válidos ($) o errores comunes (s)
+    r'([\d<,.a]{8,})'     # Precio (captura incluso formatos erróneos)
+    r'\)?$'               # Posible cierre de paréntesis
+)
+
     def process_text(self, text: str) -> List[MenuCategory]:
         """Process text to identify menu items and categories.
         
@@ -92,26 +115,97 @@ class TextProcessor:
         lines = [line.strip() for line in lines if line.strip()]
         logger.info(f"lines: {lines}")
         # Identify potential category headers and menu items
-        categories = self._identify_categories(lines)
+        # categories = self._identify_categories(lines)
+        categories = self._identify_categories2(lines)
 
         # If no categories were found, create a default one
         if not categories:
             categories = [MenuCategory("Default", [])]
             current_category = categories[0]
 
-            # Process all lines as potential menu items
-            for line in lines:
-                item = self._process_menu_item_line(line)
-                if item:
-                    current_category.items.append(item)
+            # # Process all lines as potential menu items
+            # for line in lines:
+            #     item = self._process_menu_item_line(line)
+            #     if item:
+            #         current_category.items.append(item)
 
         # Filter out empty categories
-        categories = [cat for cat in categories if cat.items]
+        # categories = [cat for cat in categories if cat.items]
 
         # Log the results
         for category in categories:
             logger.debug(
                 f"Category: {category.name} with {len(category.items)} items")
+
+        return categories
+
+    def _identify_categories2(self, lines: List[str]) -> List[MenuCategory]:
+        """Identify potential categories in the text.
+        Args:
+            lines: List of lines of text
+
+        Returns:
+            List of MenuCategory objects containing menu items
+        """
+        logger.debug("Identifying potential categories v2")
+        categories = [MenuCategory("Default", [])]
+
+        product_lines = []
+
+        i = 0
+        n = len(lines)
+        while i < n:
+            line = lines[i].strip()
+
+            # Caso 1: Precio en la misma línea
+            match_same_line = self.price_pattern_same_line.match(line)
+            if match_same_line:
+                product = match_same_line.group(1).strip()
+                price = match_same_line.group(2)[:-3].replace('.', '').replace(',', '')
+                if int(price) > 50000: 
+                    price = price[1:]
+                product_lines.append(MenuItem(product, int(price), ""))
+                i += 1
+
+            # Caso 2: Precio en la siguiente línea
+            elif i + 1 < n:
+                next_line = lines[i + 1].strip()
+                match_next_line_price = self.next_line_is_price.match(
+                    next_line)
+
+                if match_next_line_price:
+                    product = line
+                    price = match_next_line_price.group(1)[:-3].replace('.', '').replace(',', '')
+                    if int(price) > 50000: 
+                        price = price[1:]
+                    product_lines.append((MenuItem(product, int(price), "")))
+                    i += 2  # Saltamos la línea del precio
+
+                # Caso 3: No tiene precio (puede ser categoría o producto mal escrito)
+                else:
+                    
+                    i += 1
+                    logger.info(f"Revisar No tiene precio {line}")
+                    match = re.search(r'\(([^)]+)\)\s*$', line)
+                    
+                    if match: 
+                        bad_price = match.group(1)
+                        logger.info(f"bad_price: {bad_price}")
+                        bad_price = bad_price[:-2].replace('.', '').replace(',', '').replace('$', '')
+                        if int(price) > 50000: 
+                            price = price[1:]
+                        product_lines.append((MenuItem(line, 0, bad_price)))
+                    else: 
+                        product_lines.append(MenuItem(line, 0, "Check price"))
+
+
+            # Caso 4: Última línea sin precio
+            else:
+                product_lines.append(MenuItem(line, 0, "(REVISAR)"))
+                i += 1
+            
+
+        categories[0].items = product_lines
 
         return categories
 
@@ -130,7 +224,7 @@ class TextProcessor:
         for i, line in enumerate(lines):
             logger.info(f"i: {i}  - line: {line}")
             # Normalize for comparison
-            normalized_line = normalize_text(line.lower())
+            # normalized_line = normalize_text(line.lower())
 
             # Check if line is a category header
             is_category = False
@@ -193,10 +287,10 @@ class TextProcessor:
         # Extract the price first as it's the most reliable indicator
         product_result, price_value = self._extract_price(line)
         product_name = ''
-        
+
         if product_result:
             product_name = product_result
-            
+
         return MenuItem(
             name=product_name,
             price=price_value,
@@ -230,6 +324,9 @@ class TextProcessor:
 
                 product_name = matches.group(1)
                 price_value = matches.group(2)[:-3].replace('.', '')
+
+                if int(price_value) > 50000:
+                    price_value = price_value[1:]
 
                 logger.info(f"price_value: {price_value}")
                 logger.info(f"full_match: {full_match}")
